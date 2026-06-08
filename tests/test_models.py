@@ -1,5 +1,4 @@
 from apotheosession.models import (
-    _new_id,
     new_message_id,
     new_part_id,
     OpenCodeInfo,
@@ -11,13 +10,13 @@ from apotheosession.models import (
 def test_new_id_prefix():
     mid = new_message_id()
     assert mid.startswith("msg_")
-    assert len(mid) > 4
+    assert len(mid) == 4 + 32  # "msg_" + uuid hex
 
 
 def test_new_part_id_prefix():
     pid = new_part_id()
     assert pid.startswith("prt_")
-    assert len(pid) > 4
+    assert len(pid) == 4 + 32  # "prt_" + uuid hex
 
 
 def test_opencode_info_to_dict_omits_none():

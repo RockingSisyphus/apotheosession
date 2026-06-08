@@ -2,7 +2,18 @@ from __future__ import annotations
 
 import dataclasses
 import uuid
-from typing import Any, Literal
+from typing import Any
+
+__all__ = [
+    "CodexEvent",
+    "SessionMeta",
+    "TurnContext",
+    "OpenCodeInfo",
+    "OpenCodeMessage",
+    "OpenCodeSession",
+    "new_message_id",
+    "new_part_id",
+]
 
 
 def _new_id(prefix: str) -> str:
@@ -43,6 +54,7 @@ class TurnContext:
 class OpenCodeInfo:
     id: str = dataclasses.field(default_factory=lambda: _new_id("ses"))
     slug: str = ""
+    # camelCase to match OpenCode JSON schema field names
     projectID: str = "global"
     directory: str = ""
     title: str = ""
