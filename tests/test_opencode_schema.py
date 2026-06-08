@@ -39,6 +39,8 @@ def test_make_tool_part_pending():
     assert part["type"] == "tool"
     assert part["callID"] == "call_abc"
     assert part["state"]["status"] == "pending"
+    assert "input" in part["state"]
+    assert part["state"]["raw"] == '{"command":"ls"}'
 
 
 def test_make_tool_part_completed():
@@ -46,6 +48,9 @@ def test_make_tool_part_completed():
     assert part["type"] == "tool"
     assert part["state"]["status"] == "completed"
     assert part["state"]["output"] == "file1.txt\n"
+    assert "metadata" in part["state"]
+    assert "time" in part["state"]
+    assert "input" in part["state"]
 
 
 def test_make_step_finish_part():

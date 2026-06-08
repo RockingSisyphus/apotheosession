@@ -64,6 +64,9 @@ def test_convert_file_with_tool_call():
     tool_parts = [p for m in msgs for p in m["parts"] if p.get("type") == "tool"]
     assert len(tool_parts) >= 1
     assert tool_parts[0]["state"]["status"] == "completed"
+    assert "input" in tool_parts[0]["state"]
+    assert "metadata" in tool_parts[0]["state"]
+    assert "time" in tool_parts[0]["state"]
     assert "README.md" in tool_parts[0]["state"].get("output", "")
 
 

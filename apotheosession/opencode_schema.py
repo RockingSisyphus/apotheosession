@@ -49,15 +49,31 @@ def make_tool_part(
     tool_name: str = "bash",
     error: str | None = None,
 ) -> dict:
+    import time as _time
     part_id = new_part_id()
+    now = int(_time.time() * 1000)
     if error:
-        state = {"status": "error", "error": error}
+        state: dict = {"status": "error", "input": {}, "error": error, "time": {"start": now, "end": now}}
     elif raw:
-        state = {"status": "pending", "raw": raw}
+        state = {"status": "pending", "input": {}, "raw": raw}
     elif output is not None:
-        state = {"status": "completed", "output": output, "title": f"Ran {tool_name} command"}
+        state = {
+            "status": "completed",
+            "input": {},
+            "output": output,
+            "title": f"Ran {tool_name} command",
+            "metadata": {},
+            "time": {"start": now, "end": now},
+        }
     else:
-        state = {"status": "completed"}
+        state = {
+            "status": "completed",
+            "input": {},
+            "output": "",
+            "title": f"Ran {tool_name} command",
+            "metadata": {},
+            "time": {"start": now, "end": now},
+        }
     return {
         "type": "tool",
         "id": part_id,

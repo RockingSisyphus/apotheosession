@@ -147,6 +147,7 @@ class Converter:
                 stderr = payload.get("stderr", "")
                 parts = [s for s in [stdout, stderr] if s]
                 merged = "\n".join(parts) if parts else ""
+                now = int(time.time() * 1000)
                 tool["state"]["status"] = "completed"
                 if payload.get("command"):
                     tool["state"]["input"] = {
@@ -156,10 +157,8 @@ class Converter:
                 if merged:
                     tool["state"]["output"] = merged
                 tool["state"]["title"] = f"Ran command (exit {payload.get('exit_code', '?')})"
-                tool["state"]["time"] = {
-                    "start": int(time.time() * 1000),
-                    "end": int(time.time() * 1000),
-                }
+                tool["state"]["metadata"] = tool["state"].get("metadata", {})
+                tool["state"]["time"] = {"start": now, "end": now}
                 if payload.get("status") == "completed" and payload.get("exit_code", 0) != 0:
                     tool["state"]["title"] = f"Command failed (exit {payload.get('exit_code')})"
 
@@ -257,10 +256,14 @@ class Converter:
             call_id = payload.get("call_id", "")
             output = payload.get("output", "")
             if call_id in self.pending_tools:
+                now = int(time.time() * 1000)
                 tool = self.pending_tools[call_id]
                 tool["state"]["status"] = "completed"
                 tool["state"]["output"] = output
                 tool["state"]["title"] = "Command output received"
+                tool["state"]["metadata"] = tool["state"].get("metadata", {})
+                tool["state"]["input"] = tool["state"].get("input", {})
+                tool["state"]["time"] = {"start": tool["state"].get("time", {}).get("start", now), "end": now}
 
         elif rtype == "custom_tool_call":
             name = payload.get("name", "apply_patch")
@@ -268,6 +271,7 @@ class Converter:
             tool_input = payload.get("input", "")
 
             if self.current_assistant_msg:
+                now = int(time.time() * 1000)
                 tool = {
                     "type": "tool",
                     "id": _new_id("prt"),
@@ -277,7 +281,11 @@ class Converter:
                     "tool": name,
                     "state": {
                         "status": payload.get("status", "completed"),
-                        "input": tool_input,
+                        "input": {"raw": tool_input},
+                        "output": "",
+                        "title": f"Ran {name}",
+                        "metadata": {},
+                        "time": {"start": now, "end": now},
                     },
                 }
                 self.current_assistant_msg.parts.append(tool)
@@ -288,9 +296,13 @@ class Converter:
             if self.current_assistant_msg:
                 for part in self.current_assistant_msg.parts:
                     if part.get("type") == "tool" and part.get("callID") == call_id:
-                        part["state"]["output"] = output_str
+                        now = int(time.time() * 1000)
                         part["state"]["status"] = "completed"
+                        part["state"]["output"] = output_str
                         part["state"]["title"] = "Tool output received"
+                        part["state"]["metadata"] = part["state"].get("metadata", {})
+                        part["state"]["input"] = part["state"].get("input", {})
+                        part["state"]["time"] = {"start": part["state"].get("time", {}).get("start", now), "end": now}
 
     def _extract_text(self, content: list) -> str:
         texts = []
