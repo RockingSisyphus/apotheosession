@@ -324,7 +324,7 @@ class Converter:
         if self.session_meta:
             created = self.session_meta.get("timestamp", "")
 
-        directory = os.getcwd()
+        directory = self.session_meta.get("cwd", "") if self.session_meta else ""
         project_id = self._get_project_id()
 
         title = self._first_user_text if self._first_user_text else "Codex Session"
