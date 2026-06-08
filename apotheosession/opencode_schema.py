@@ -115,6 +115,7 @@ def make_step_finish_part(
 
 
 def make_file_part(filename: str, session_id: str, message_id: str) -> dict:
+    file_url = "file:///" + filename.replace("\\", "/").replace(":", "")
     return {
         "type": "file",
         "id": new_part_id(),
@@ -122,6 +123,7 @@ def make_file_part(filename: str, session_id: str, message_id: str) -> dict:
         "messageID": message_id,
         "mime": "text/plain",
         "filename": filename,
+        "url": file_url,
     }
 
 

@@ -4,6 +4,7 @@ from apotheosession.opencode_schema import (
     make_reasoning_part,
     make_tool_part,
     make_step_finish_part,
+    make_file_part,
     make_user_message,
     make_assistant_message,
     build_info,
@@ -51,6 +52,14 @@ def test_make_tool_part_completed():
     assert "metadata" in part["state"]
     assert "time" in part["state"]
     assert "input" in part["state"]
+
+
+def test_make_file_part():
+    part = make_file_part("C:\\project\\file.ts", "ses_1", "msg_1")
+    assert part["type"] == "file"
+    assert part["url"].startswith("file:///")
+    assert part["sessionID"] == "ses_1"
+    assert part["messageID"] == "msg_1"
 
 
 def test_make_step_finish_part():
