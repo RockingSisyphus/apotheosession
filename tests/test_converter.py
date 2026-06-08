@@ -43,9 +43,8 @@ def test_convert_file_with_tool_call():
 
     tool_parts = [p for m in msgs for p in m["parts"] if p.get("type") == "tool"]
     assert len(tool_parts) >= 1
-
-    if tool_parts:
-        assert tool_parts[0]["state"]["status"] in ("completed", "pending")
+    assert tool_parts[0]["state"]["status"] == "completed"
+    assert "README.md" in tool_parts[0]["state"].get("output", "")
 
 
 def test_convert_invalid_file():
@@ -53,8 +52,12 @@ def test_convert_invalid_file():
     assert result is None
 
 
-def test_convert_empty_file(tmp_path):
-    f = tmp_path / "empty.jsonl"
-    f.write_text("")
-    result = convert_file(str(f))
-    assert result is None
+def test_convert_empty_file():
+    import tempfile, os
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+        fpath = f.name
+    try:
+        result = convert_file(fpath)
+        assert result is None
+    finally:
+        os.unlink(fpath)

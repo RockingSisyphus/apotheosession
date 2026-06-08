@@ -22,7 +22,6 @@ from apotheosession.opencode_schema import (
     make_text_part,
     make_tool_part,
     make_user_message,
-    parse_iso_timestamp,
 )
 
 
@@ -142,7 +141,8 @@ class Converter:
                 tool = self.pending_tools[call_id]
                 stdout = payload.get("stdout", "")
                 stderr = payload.get("stderr", "")
-                merged = stdout + stderr
+                parts = [s for s in [stdout, stderr] if s]
+                merged = "\n".join(parts) if parts else ""
                 tool["state"]["status"] = "completed"
                 if payload.get("command"):
                     tool["state"]["input"] = {
@@ -153,7 +153,7 @@ class Converter:
                     tool["state"]["output"] = merged
                 tool["state"]["title"] = f"Ran command (exit {payload.get('exit_code', '?')})"
                 tool["state"]["time"] = {
-                    "start": 0,
+                    "start": int(time.time() * 1000),
                     "end": int(time.time() * 1000),
                 }
                 if payload.get("status") == "completed" and payload.get("exit_code", 0) != 0:
@@ -286,6 +286,7 @@ class Converter:
         self.current_user_msg = None
         self.current_assistant_msg = None
         self.pending_tools.clear()
+        self._has_reasoning = False
 
     def _finalize(self) -> None:
         if self.current_assistant_msg or self.current_user_msg:
