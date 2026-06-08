@@ -47,6 +47,7 @@ def test_convert_minimal_session():
     assert any("Paris" in t for t in texts)
     assert len(reasoning) == 1
     assert "encrypted" in reasoning[0]["text"]
+    assert "time" in reasoning[0]
 
 
 def test_convert_file_with_tool_call():

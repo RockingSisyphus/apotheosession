@@ -29,6 +29,9 @@ def test_make_reasoning_part():
     part = make_reasoning_part("msg_1", "ses_1")
     assert part["type"] == "reasoning"
     assert "encrypted" in part["text"]
+    assert "time" in part
+    assert "start" in part["time"]
+    assert "end" in part["time"]
 
 
 def test_make_tool_part_pending():
@@ -46,8 +49,11 @@ def test_make_tool_part_completed():
 
 
 def test_make_step_finish_part():
-    part = make_step_finish_part(input_t=100, output_t=50, reason="stop")
+    part = make_step_finish_part("ses_1", "msg_1", input_t=100, output_t=50, reason="stop")
     assert part["type"] == "step-finish"
+    assert part["sessionID"] == "ses_1"
+    assert part["messageID"] == "msg_1"
+    assert part["cost"] == 0
     assert part["tokens"]["input"] == 100
     assert part["tokens"]["output"] == 50
 

@@ -129,14 +129,14 @@ class Converter:
             usage = payload.get("info", {}).get("total_token_usage", {})
             if usage and self.current_assistant_msg:
                 part = make_step_finish_part(
+                    session_id=self.session_id,
+                    message_id=self.current_assistant_msg.info["id"],
                     input_t=usage.get("input_tokens", 0),
                     output_t=usage.get("output_tokens", 0),
                     reasoning_t=usage.get("reasoning_output_tokens", 0),
                     cache_read=usage.get("cached_input_tokens", 0),
                     total=usage.get("total_tokens", 0),
                 )
-                part["sessionID"] = self.session_id
-                part["messageID"] = self.current_assistant_msg.info["id"]
                 self.current_assistant_msg.parts.append(part)
 
         elif msg_type == "exec_command_end":

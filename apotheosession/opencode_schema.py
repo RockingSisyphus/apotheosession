@@ -28,12 +28,15 @@ def make_text_part(text: str, message_id: str, session_id: str) -> dict:
 
 
 def make_reasoning_part(message_id: str, session_id: str) -> dict:
+    import time as _time
+    now = int(_time.time() * 1000)
     return {
         "type": "reasoning",
         "id": new_part_id(),
         "sessionID": session_id,
         "messageID": message_id,
         "text": "[Reasoning encrypted — not available in export]",
+        "time": {"start": now, "end": now},
     }
 
 
@@ -67,6 +70,8 @@ def make_tool_part(
 
 
 def make_step_finish_part(
+    session_id: str,
+    message_id: str,
     input_t: int = 0,
     output_t: int = 0,
     reasoning_t: int = 0,
@@ -74,11 +79,15 @@ def make_step_finish_part(
     cache_write: int = 0,
     total: int = 0,
     reason: str = "stop",
+    cost: float = 0,
 ) -> dict:
     return {
         "type": "step-finish",
         "id": new_part_id(),
+        "sessionID": session_id,
+        "messageID": message_id,
         "reason": reason,
+        "cost": cost,
         "tokens": {
             "input": input_t,
             "output": output_t,
