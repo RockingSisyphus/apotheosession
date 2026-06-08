@@ -1,5 +1,24 @@
+# Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*.egg-info/
 .venv/
-.python-version
+venv/
+*.egg
+
+# Project
+converted/
+.pytest_cache/
+.coverage
+*.tmp
+*.tmp_*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
