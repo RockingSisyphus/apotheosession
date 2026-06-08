@@ -62,7 +62,7 @@ class Converter:
         self.state: str = "IDLE"
         self.session_meta: dict | None = None
         self.turn_contexts: list[dict] = []
-        self.session_id = _new_id("ses")
+        self.session_id = _new_id("ses")  # fallback, overridden by _handle_session_meta
 
         self.current_user_msg: OpenCodeMessage | None = None
         self.current_assistant_msg: OpenCodeMessage | None = None
@@ -103,6 +103,10 @@ class Converter:
     def _handle_session_meta(self, payload: dict) -> None:
         self.session_meta = payload
         self._model_provider = payload.get("model_provider", "")
+        codex_uuid = payload.get("id", "")
+        codex_short = codex_uuid.replace("-", "")[:12] if codex_uuid else ""
+        if codex_short:
+            self.session_id = f"ses_codex_{codex_short}"
         self.state = "IDLE"
 
     def _handle_event_msg(self, payload: dict) -> None:
@@ -312,7 +316,6 @@ class Converter:
             created = self.session_meta.get("timestamp", "")
 
         directory = self.session_meta.get("cwd", "") if self.session_meta else ""
-        codex_uuid = self.session_meta.get("id", "") if self.session_meta else ""
 
         title = self._first_user_text if self._first_user_text else "Codex Session"
         title = f"{title} | {created[:10]}" if created else title
@@ -325,9 +328,7 @@ class Converter:
             model_provider=self._model_provider,
             model_id=self._model_id,
         )
-        # Derive stable session ID from Codex UUID
-        codex_short = codex_uuid.replace("-", "")[:12] if codex_uuid else ""
-        info.id = f"ses_codex_{codex_short}" if codex_short else self.session_id
-        info.slug = f"codex-{codex_short}" if codex_short else info.slug
+        info.id = self.session_id
+        info.slug = f"codex-{self.session_id.replace('ses_codex_', '')}"
 
         return OpenCodeSession(info=info, messages=self.messages)

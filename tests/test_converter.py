@@ -22,14 +22,17 @@ def test_convert_minimal_session():
     assert info["model"]["providerID"] == "openai"
     assert info["model"]["id"] == "gpt-5.5"
 
+    session_id = info["id"]
     msgs = d["messages"]
     assert msgs[0]["info"]["role"] == "user"
     assert msgs[0]["parts"][0]["text"] == "What is the capital of France?"
     assert msgs[0]["info"]["agent"] == "codex"
+    assert msgs[0]["info"]["sessionID"] == session_id
     assert "model" in msgs[0]["info"]
 
     assert msgs[1]["info"]["role"] == "assistant"
     assert msgs[1]["info"]["parentID"] == msgs[0]["info"]["id"]
+    assert msgs[1]["info"]["sessionID"] == session_id
     assert msgs[1]["info"]["agent"] == "codex"
     assert msgs[1]["info"]["mode"] == "build"
     assert msgs[1]["info"]["modelID"] == "gpt-5.5"
@@ -51,7 +54,11 @@ def test_convert_file_with_tool_call():
     result = convert_file(str(fixture))
     assert result is not None
     d = result.to_dict()
+    session_id = d["info"]["id"]
     msgs = d["messages"]
+
+    for m in msgs:
+        assert m["info"]["sessionID"] == session_id, f"message sessionID mismatch: {m['info']['sessionID']} != {session_id}"
 
     tool_parts = [p for m in msgs for p in m["parts"] if p.get("type") == "tool"]
     assert len(tool_parts) >= 1
