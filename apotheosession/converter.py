@@ -39,7 +39,7 @@ def _load_events(filepath: str) -> list[dict]:
     return events
 
 
-def convert_file(filepath: str) -> OpenCodeSession | None:
+def convert_file(filepath: str, provider: str = "deepseek", model_id: str = "deepseek-v4-pro") -> OpenCodeSession | None:
     if not os.path.isfile(filepath):
         return None
 
@@ -50,13 +50,13 @@ def convert_file(filepath: str) -> OpenCodeSession | None:
     if events[0].get("type") != "session_meta":
         return None
 
-    return Converter(events).convert()
+    return Converter(events, provider=provider, model_id=model_id).convert()
 
 
 class Converter:
     """Sequential state machine for Codex -> OpenCode conversion."""
 
-    def __init__(self, events: list[dict]):
+    def __init__(self, events: list[dict], provider: str = "deepseek", model_id: str = "deepseek-v4-pro"):
         self.events = events
         self.idx = 0
         self.state: str = "IDLE"
@@ -73,8 +73,13 @@ class Converter:
         self._title: str = ""
         self._first_user_text: str = ""
         self._last_timestamp: str = ""
-        self._model_provider: str = ""
-        self._model_id: str = ""
+        self._model_provider = provider
+        self._model_id = model_id
+        self._finish: str = "stop"
+
+        # Codex reports cumulative token counts — track previous values
+        # so step-finish parts receive per-message deltas.
+        self._prev_tokens: dict[str, int] = {}
 
     def convert(self) -> OpenCodeSession:
         while self.idx < len(self.events):
@@ -93,8 +98,6 @@ class Converter:
             self._handle_session_meta(payload)
         elif etype == "turn_context":
             self.turn_contexts.append(payload)
-            if not self._model_id and payload.get("model"):
-                self._model_id = payload["model"]
         elif etype == "event_msg":
             self._handle_event_msg(payload)
         elif etype == "response_item":
@@ -102,7 +105,6 @@ class Converter:
 
     def _handle_session_meta(self, payload: dict) -> None:
         self.session_meta = payload
-        self._model_provider = payload.get("model_provider", "")
         codex_uuid = payload.get("id", "")
         codex_short = codex_uuid.replace("-", "")[:12] if codex_uuid else ""
         if codex_short:
@@ -126,16 +128,32 @@ class Converter:
             self.state = "IDLE"
 
         elif msg_type == "token_count":
-            usage = payload.get("info", {}).get("total_token_usage", {})
+            info = payload.get("info")
+            usage = info.get("total_token_usage", {}) if info else {}
             if usage and self.current_assistant_msg:
+                raw = {
+                    "input": usage.get("input_tokens", 0),
+                    "output": usage.get("output_tokens", 0),
+                    "reasoning": usage.get("reasoning_output_tokens", 0),
+                    "cache_read": usage.get("cached_input_tokens", 0),
+                    "total": usage.get("total_tokens", 0),
+                }
+                delta = {
+                    "input": max(0, raw["input"] - self._prev_tokens.get("input", 0)),
+                    "output": max(0, raw["output"] - self._prev_tokens.get("output", 0)),
+                    "reasoning": max(0, raw["reasoning"] - self._prev_tokens.get("reasoning", 0)),
+                    "cache_read": max(0, raw["cache_read"] - self._prev_tokens.get("cache_read", 0)),
+                    "total": max(0, raw["total"] - self._prev_tokens.get("total", 0)),
+                }
+                self._prev_tokens = raw
                 part = make_step_finish_part(
                     session_id=self.session_id,
                     message_id=self.current_assistant_msg.info["id"],
-                    input_t=usage.get("input_tokens", 0),
-                    output_t=usage.get("output_tokens", 0),
-                    reasoning_t=usage.get("reasoning_output_tokens", 0),
-                    cache_read=usage.get("cached_input_tokens", 0),
-                    total=usage.get("total_tokens", 0),
+                    input_t=delta["input"],
+                    output_t=delta["output"],
+                    reasoning_t=delta["reasoning"],
+                    cache_read=delta["cache_read"],
+                    total=delta["total"],
                 )
                 self.current_assistant_msg.parts.append(part)
 
@@ -208,7 +226,7 @@ class Converter:
                     cwd = self.session_meta.get("cwd", "") if self.session_meta else ""
                     self.current_user_msg = make_user_message(
                         text, self.session_id,
-                        agent="codex",
+                        agent="build",
                         model_provider=self._model_provider,
                         model_id=self._model_id,
                     )
@@ -216,14 +234,24 @@ class Converter:
                     self.state = "USER_MSG"
 
             elif role == "assistant":
-                parent_id = self.current_user_msg.info["id"] if self.current_user_msg else ""
+                parent_id = ""
+                if self.current_user_msg:
+                    parent_id = self.current_user_msg.info["id"]
+                else:
+                    # Codex may split user/assistant across turns (async processing).
+                    # Fall back to the most recent user message in the session.
+                    for m in reversed(self.messages):
+                        if m.info.get("role") == "user":
+                            parent_id = m.info["id"]
+                            break
                 cwd = self.session_meta.get("cwd", "") if self.session_meta else ""
                 self.current_assistant_msg = make_assistant_message(
                     parent_id, self.session_id,
-                    agent="codex",
+                    agent="build",
                     model_id=self._model_id,
                     provider_id=self._model_provider,
                     cwd=cwd,
+                    finish=self._finish,
                 )
                 if self._has_reasoning:
                     part = make_reasoning_part(
@@ -247,6 +275,7 @@ class Converter:
             call_id = payload.get("call_id", _new_id("call"))
 
             if self.current_assistant_msg:
+                self._finish = "tool-calls"
                 tool = make_tool_part(
                     call_id=call_id,
                     message_id=self.current_assistant_msg.info["id"],
@@ -265,6 +294,8 @@ class Converter:
                 now = int(time.time() * 1000)
                 tool = self.pending_tools[call_id]
                 tool["state"]["status"] = "completed"
+                if isinstance(output, (list, dict)):
+                    output = json.dumps(output, ensure_ascii=False)
                 tool["state"]["output"] = output
                 tool["state"]["title"] = "Command output received"
                 tool["state"]["metadata"] = tool["state"].get("metadata", {})
@@ -277,6 +308,7 @@ class Converter:
             tool_input = payload.get("input", "")
 
             if self.current_assistant_msg:
+                self._finish = "tool-calls"
                 now = int(time.time() * 1000)
                 tool = {
                     "type": "tool",
@@ -304,6 +336,8 @@ class Converter:
                     if part.get("type") == "tool" and part.get("callID") == call_id:
                         now = int(time.time() * 1000)
                         part["state"]["status"] = "completed"
+                        if isinstance(output_str, (list, dict)):
+                            output_str = json.dumps(output_str, ensure_ascii=False)
                         part["state"]["output"] = output_str
                         part["state"]["title"] = "Tool output received"
                         part["state"]["metadata"] = part["state"].get("metadata", {})
@@ -322,6 +356,7 @@ class Converter:
         self.current_assistant_msg = None
         self.pending_tools.clear()
         self._has_reasoning = False
+        self._finish = "stop"
 
     def _finalize(self) -> None:
         if self.current_assistant_msg or self.current_user_msg:

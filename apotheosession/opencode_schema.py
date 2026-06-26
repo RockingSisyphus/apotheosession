@@ -130,9 +130,9 @@ def make_file_part(filename: str, session_id: str, message_id: str) -> dict:
 def make_user_message(
     text: str,
     session_id: str,
-    agent: str = "codex",
-    model_provider: str = "",
-    model_id: str = "",
+    agent: str = "build",
+    model_provider: str = "deepseek",
+    model_id: str = "deepseek-v4-pro",
 ) -> OpenCodeMessage:
     msg_id = new_message_id()
     info: dict = {
@@ -141,11 +141,9 @@ def make_user_message(
         "role": "user",
         "time": {"created": int(time.time() * 1000)},
         "agent": agent,
+        "model": {"providerID": model_provider, "modelID": model_id, "variant": "default"},
+        "summary": {"diffs": []},
     }
-    if model_provider and model_id:
-        info["model"] = {"providerID": model_provider, "modelID": model_id}
-    else:
-        info["model"] = {"providerID": "unknown", "modelID": "unknown"}
     return OpenCodeMessage(
         info=info,
         parts=[make_text_part(text, msg_id, session_id)],
@@ -155,14 +153,13 @@ def make_user_message(
 def make_assistant_message(
     parent_id: str,
     session_id: str,
-    agent: str = "codex",
-    model_id: str = "",
-    provider_id: str = "",
+    agent: str = "build",
+    model_id: str = "deepseek-v4-pro",
+    provider_id: str = "deepseek",
     cwd: str = "",
+    finish: str = "stop",
 ) -> OpenCodeMessage:
     msg_id = new_message_id()
-    import os
-    root = os.path.splitdrive(cwd)[0] + "\\" if cwd and os.path.splitdrive(cwd)[0] else "/"
     return OpenCodeMessage(
         info={
             "id": msg_id,
@@ -172,10 +169,12 @@ def make_assistant_message(
             "time": {"created": int(time.time() * 1000)},
             "agent": agent,
             "mode": "build",
-            "modelID": model_id or "unknown",
-            "providerID": provider_id or "unknown",
-            "path": {"cwd": cwd or "", "root": root},
+            "variant": "default",
+            "modelID": model_id,
+            "providerID": provider_id,
+            "path": {"cwd": cwd or "", "root": cwd or "/"},
             "cost": 0,
+            "finish": finish,
             "tokens": {
                 "total": 0,
                 "input": 0,
@@ -193,23 +192,19 @@ def build_info(
     directory: str,
     created_iso: str = "",
     updated_iso: str = "",
-    model_provider: str = "",
-    model_id: str = "",
+    model_provider: str = "deepseek",
+    model_id: str = "deepseek-v4-pro",
 ) -> OpenCodeInfo:
     info = OpenCodeInfo(
         slug=f"codex-{_new_id('ses')[4:12]}",
         directory=directory,
         title=title,
+        agent="build",
+        model={"providerID": model_provider, "id": model_id, "variant": "default"},
     )
     if created_iso:
         created_ms = parse_iso_timestamp(created_iso)
         info.time = {"created": created_ms}
         if updated_iso:
             info.time["updated"] = parse_iso_timestamp(updated_iso)
-    if model_provider or model_id:
-        info.model = {}
-        if model_provider:
-            info.model["providerID"] = model_provider
-        if model_id:
-            info.model["id"] = model_id
     return info

@@ -78,36 +78,46 @@ def test_make_user_message():
     assert msg.info["agent"] == "test"
     assert msg.info["model"]["providerID"] == "dp"
     assert msg.info["model"]["modelID"] == "m1"
+    assert msg.info["model"]["variant"] == "default"
+    assert msg.info["summary"] == {"diffs": []}
     assert len(msg.parts) == 1
     assert msg.parts[0]["text"] == "hello"
 
 
 def test_make_user_message_defaults():
     msg = make_user_message("hello", "ses_1")
-    assert msg.info["agent"] == "codex"
-    assert msg.info["model"]["providerID"] == "unknown"
-    assert msg.info["model"]["modelID"] == "unknown"
+    assert msg.info["agent"] == "build"
+    assert msg.info["model"]["providerID"] == "deepseek"
+    assert msg.info["model"]["modelID"] == "deepseek-v4-pro"
+    assert msg.info["model"]["variant"] == "default"
+    assert msg.info["summary"] == {"diffs": []}
 
 
 def test_make_assistant_message():
-    msg = make_assistant_message("parent_1", "ses_1", agent="test", model_id="m1", provider_id="dp", cwd="C:\\project")
+    msg = make_assistant_message("parent_1", "ses_1", agent="test", model_id="m1", provider_id="dp", cwd="/project")
     assert msg.info["role"] == "assistant"
     assert msg.info["parentID"] == "parent_1"
     assert msg.info["agent"] == "test"
     assert msg.info["modelID"] == "m1"
     assert msg.info["providerID"] == "dp"
     assert msg.info["mode"] == "build"
-    assert msg.info["path"]["cwd"] == "C:\\project"
+    assert msg.info["variant"] == "default"
+    assert msg.info["finish"] == "stop"
+    assert msg.info["path"]["cwd"] == "/project"
+    assert msg.info["path"]["root"] == "/project"
     assert "cost" in msg.info
     assert "tokens" in msg.info
 
 
 def test_make_assistant_message_defaults():
     msg = make_assistant_message("p1", "ses_1")
-    assert msg.info["agent"] == "codex"
-    assert msg.info["modelID"] == "unknown"
-    assert msg.info["providerID"] == "unknown"
+    assert msg.info["agent"] == "build"
+    assert msg.info["modelID"] == "deepseek-v4-pro"
+    assert msg.info["providerID"] == "deepseek"
+    assert msg.info["variant"] == "default"
+    assert msg.info["finish"] == "stop"
     assert msg.info["path"]["cwd"] == ""
+    assert msg.info["path"]["root"] == "/"
 
 
 def test_build_info_minimal():

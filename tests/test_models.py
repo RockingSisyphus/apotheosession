@@ -9,8 +9,8 @@ from apotheosession.models import (
 
 def test_new_id_prefix():
     mid = new_message_id()
-    assert mid.startswith("msg_")
-    assert len(mid) == 4 + 32  # "msg_" + uuid hex
+    assert mid.startswith("msg_000000000000"), f"expected msg_000000000000 prefix, got {mid[:20]}"
+    assert len(mid) == 30  # msg_ (4) + 12hex + 14base62 = 30
 
 
 def test_new_part_id_prefix():

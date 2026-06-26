@@ -21,6 +21,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--flatten", action="store_true", help="Write all .json files flat")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be converted")
+    parser.add_argument(
+        "--provider",
+        default="deepseek",
+        help="Provider ID for all messages (default: deepseek). Codex providers (ccswitch, custom) are unavailable in opencode.",
+    )
+    parser.add_argument(
+        "--model",
+        default="deepseek-v4-pro",
+        help="Model ID for all messages (default: deepseek-v4-pro). Must be available under the configured provider.",
+    )
     return parser.parse_args(argv)
 
 
@@ -96,7 +106,7 @@ def main() -> None:
             print(f"[DRY RUN] Would convert: {filepath} -> {slug}.json")
             continue
 
-        result = convert_file(filepath)
+        result = convert_file(filepath, provider=args.provider, model_id=args.model)
         if result is None:
             print(f"ERROR: Failed to convert {filepath}", file=sys.stderr)
             skipped += 1

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import dataclasses
+import secrets
+import string
 import uuid
 from typing import Any
+
+_BASE62 = string.digits + string.ascii_uppercase + string.ascii_lowercase
 
 __all__ = [
     "CodexEvent",
@@ -90,7 +94,16 @@ class OpenCodeSession:
 
 
 def new_message_id() -> str:
-    return _new_id("msg")
+    # OpenCode's native format is msg_<12hex><14base62>, e.g. msg_0019f0a0e3c0XyZkLmNoPqRsTu.
+    # The 12-hex encodes timestamp*4096+counter; string comparison on the ID is
+    # used by MessageV2.latest() to find the latest user/assistant/finished message.
+    # Using all-zero hex (timestamp 0) guarantees imported IDs always sort before
+    # any OpenCode-generated ID. The 14-base62 suffix provides uniqueness.
+    # Format must match exactly: msg_ + 12hex + 14base62, otherwise opencode's
+    # timestamp(id) function (BigInt on the hex slice) will throw on non-hex chars
+    # like / , -, or extra _.
+    suffix = "".join(secrets.choice(_BASE62) for _ in range(14))
+    return f"msg_000000000000{suffix}"
 
 
 def new_part_id() -> str:
